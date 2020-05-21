@@ -104,6 +104,14 @@ DEBUG */
 
         public project: { (x0: number[], y0: number[], r: number[]): void }[] = null;
 
+        //wrapping configurations
+        private width: number = 1;
+        private height: number = 1;
+        private static oneThirdWidth: number = 0;
+        private static twoThirdsWidth: number = 0;
+        private static oneThirdHeight: number = 0;
+        private static twoThirdsHeight: number = 0;
+
         /**
          * @method constructor
          * @param x {number[][]} initial coordinates for nodes
@@ -112,7 +120,13 @@ DEBUG */
          * If G[i][j] > 1 and the separation between nodes i and j is greater than their ideal distance, then there is no contribution for this pair to the goal
          * If G[i][j] <= 1 then it is used as a weighting on the contribution of the variance between ideal and actual separation between i and j to the goal function
          */
-        constructor(x: number[][], public D: number[][], public G: number[][]= null) {
+        constructor(x: number[][], public D: number[][], public G: number[][]= null, public canvasSize: number[] = null, private bEnableTorusWrapping: boolean = false) {
+			if(this.canvasSize != null) {
+                this.width = this.canvasSize[0];
+                this.height = this.canvasSize[1];
+            }
+            this.bEnableTorusWrapping = bEnableTorusWrapping;
+            this.initWrappingConfiguration();
             this.x = x;
             this.k = x.length; // dimensionality
             var n = this.n = x[0].length; // number of nodes
@@ -211,18 +225,27 @@ DEBUG */
                     // randomly displaces nodes that are at identical positions
                     let maxDisplaces = n; // avoid infinite loop in the case of numerical issues, such as huge values
                     let distanceSquared = 0;
+                    const idealDistance: number = this.D[u][v];
                     while (maxDisplaces--) {
                         distanceSquared = 0;
-                        for (i = 0; i < this.k; ++i) {
-                            const dx = d[i] = x[i][u] - x[i][v];
-                            distanceSquared += d2[i] = dx * dx;
+                        if(this.k == 2 && this.bEnableTorusWrapping)
+                        {
+                            const distance = this.computeTorusDistance(x[0][u], x[1][u],
+                                x[0][v], x[1][v], d2, d, idealDistance);
+                            distanceSquared += distance * distance;
+                        }
+                        else {
+                            for (i = 0; i < this.k; ++i) {
+                                const dx = d[i] = x[i][u] - x[i][v];
+                                distanceSquared += d2[i] = dx * dx;
+                            }
                         }
                         if (distanceSquared > 1e-9) break;
                         const rd = this.offsetDir();
                         for (i = 0; i < this.k; ++i) x[i][v] += rd[i];
                     }
                     const distance = Math.sqrt(distanceSquared);
-                    const idealDistance = this.D[u][v];
+                    
                     // weights are passed via G matrix.
                     // weight > 1 means not immediately connected
                     // small weights (<<1) are used for group dummy nodes
@@ -328,6 +351,8 @@ DEBUG */
             for (var i = 0; i < this.k; ++i) {
                 this.takeDescentStep(this.x[i], this.g[i], alpha);
             }
+            if(this.bEnableTorusWrapping)
+                this.wrappingNode(this.x, Descent.oneThirdWidth, Descent.twoThirdsWidth, Descent.oneThirdHeight, Descent.twoThirdsHeight);
             return this.computeStress();
         }
 
@@ -404,6 +429,10 @@ DEBUG */
         }
 
         public rungeKutta(): number {
+            //before computing derivative, wrap nodes around based on user-defined wrapping window
+            if(this.bEnableTorusWrapping)
+                this.wrappingNode(this.x, Descent.oneThirdWidth, Descent.twoThirdsWidth, Descent.oneThirdHeight, Descent.twoThirdsHeight);
+
             this.computeNextPosition(this.x, this.a);
             Descent.mid(this.x, this.a, this.ia);
             this.computeNextPosition(this.ia, this.b);
@@ -436,11 +465,23 @@ DEBUG */
             for (var u = 0, nMinus1 = this.n - 1; u < nMinus1; ++u) {
                 for (var v = u + 1, n = this.n; v < n; ++v) {
                     var l = 0;
-                    for (var i = 0; i < this.k; ++i) {
-                        var dx = this.x[i][u] - this.x[i][v];
-                        l += dx * dx;
+                    
+                    if(this.k == 2 && this.bEnableTorusWrapping)
+                    {
+                        const idealDistance: number = this.D[u][v];
+                        const distance = this.computeTorusDistance(this.x[0][u], this.x[1][u],
+                            this.x[0][v], this.x[1][v], null, null, idealDistance);
+                            
+                        l = distance;
                     }
-                    l = Math.sqrt(l);
+                    else {
+                        for (var i = 0; i < this.k; ++i) {
+                            var dx = this.x[i][u] - this.x[i][v];
+                            l += dx * dx;
+                        }                            
+                        l = Math.sqrt(l);
+                    }                        
+                    
                     var d = this.D[u][v];
                     if (!isFinite(d)) continue;
                     var rl = d - l;
@@ -449,6 +490,177 @@ DEBUG */
                 }
             }
             return stress;
+        }
+
+        private computeTorusDistance(sourceX: number, sourceY: number, targetX: number,
+            targetY: number, d2: Array<number>, d: Array<number>, idealDistance: number): number{
+            let nodesInContext: Array<any> = null;
+            let intersectionPoints: Array<any> = null;
+            let tmpDistance: number = 0;
+            let results: any;
+            
+            results = {"edgeLength":Number.MAX_VALUE,
+                        "minDiffFromIdealDistance": Number.MAX_VALUE};
+            tmpDistance = 0;
+            
+            nodesInContext = this.getNodePositionsFromContext(Descent.oneThirdWidth, Descent.twoThirdsWidth, Descent.oneThirdHeight, Descent.twoThirdsHeight, targetX, targetY);
+            intersectionPoints = this.calculateGradientContribution(
+                sourceX, sourceY, nodesInContext, results, d2, d, idealDistance);
+
+            tmpDistance = this.findEuclideanDistance(sourceX, sourceY, targetX, targetY);
+            let diffFromIdealDistance = Math.abs(tmpDistance - idealDistance);
+            
+            if(results.minDiffFromIdealDistance > diffFromIdealDistance) {
+                if(d2 != null && d != null) {
+                    d[0] = sourceX - targetX;
+                    d[1] = sourceY - targetY;
+
+                    d2[0] = Math.pow(Math.abs(sourceX-targetX), 2);
+                    d2[1] = Math.pow(Math.abs(sourceY-targetY), 2);
+                }
+                results.minDiffFromIdealDistance = diffFromIdealDistance;
+                results.edgeLength = tmpDistance;
+            }   
+            return results.edgeLength;  
+        }
+
+        private findEuclideanDistance(x1: number, y1: number, x2: number, y2: number): number {
+            return Math.sqrt(Math.pow(x1-x2,2) + Math.pow(y1-y2,2));
+        }
+
+        private getNodePositionsFromContext(oneThirdWidth: number, twoThirdsWidth: number, oneThirdHeight: number, twoThirdsHeight: number, x: number, y: number): any {            
+            let nodesInContext: any = new Array<any>();
+
+            //ignore if the given position falls out of the middle square
+            if(x < oneThirdWidth && x > twoThirdsWidth && y < oneThirdHeight && y > twoThirdsHeight)
+                nodesInContext = null;
+
+            if(nodesInContext != null){
+                //calculate x, y position of nodes in the 4 adjacent squares 
+                //in the order of [left, up, right, bottom]
+                nodesInContext.push({"x":x-oneThirdWidth, "y":y, "intersectedX": oneThirdWidth, "intersectedY": 0});
+                nodesInContext.push({"x":x, "y":y-oneThirdHeight, "intersectedX": 0, "intersectedY": oneThirdHeight});
+                nodesInContext.push({"x":x+oneThirdWidth, "y":y, "intersectedX": twoThirdsWidth, "intersectedY": 0});
+                nodesInContext.push({"x":x, "y":y+oneThirdHeight, "intersectedX": 0, "intersectedY": twoThirdsHeight});
+
+                //calculate x, y position of nodes in the 4 corner squares
+                //in the order of [upper-left, upper-right, bottom-right bottom-left]
+                nodesInContext.push({"x":x-oneThirdWidth, "y":y-oneThirdHeight, "intersectedX": oneThirdWidth, "intersectedY": oneThirdHeight});
+                nodesInContext.push({"x":x+oneThirdWidth, "y":y-oneThirdHeight, "intersectedX": twoThirdsWidth, "intersectedY": oneThirdHeight});            
+                nodesInContext.push({"x":x+oneThirdWidth, "y":y+oneThirdHeight, "intersectedX": twoThirdsWidth, "intersectedY": twoThirdsHeight});
+                nodesInContext.push({"x":x-oneThirdWidth, "y":y+oneThirdHeight, "intersectedX": oneThirdWidth, "intersectedY": twoThirdsHeight});            
+            }
+            return nodesInContext;
+        }
+
+        private calculateGradientContribution(sourceX: number, sourceY: number, nodesInContext: any, results: any,
+            d2: Array<number>, d: Array<number>, idealDistance: number): any{        
+            let intersectionPoints: any= new Array<any>();
+            let minDiffFromIdealDistance = Number.MAX_VALUE;
+            let tmpDistance = Number.MAX_VALUE;
+            let minDistance = Number.MAX_VALUE;
+
+            //ignore if nodesInContext is null or empty
+            if(nodesInContext == null)
+                intersectionPoints = null;
+            else {
+                for(let mappingNode of nodesInContext) {
+                    //update vectors
+                    tmpDistance = this.findEuclideanDistance(mappingNode.x, mappingNode.y, sourceX, sourceY);
+                    let diffFromIdealDistance = Math.abs(tmpDistance - idealDistance);
+                    
+                    if(minDiffFromIdealDistance > diffFromIdealDistance) {
+                        minDiffFromIdealDistance = diffFromIdealDistance;
+                        minDistance = tmpDistance;
+
+                        if(d2 != null && d != null) {
+                            d2[0] = Math.pow(Math.abs(sourceX-mappingNode.x),2);
+                            d2[1] = Math.pow(Math.abs(sourceY-mappingNode.y),2);
+
+                            d[0] = (sourceX-mappingNode.x);
+                            d[1] = (sourceY-mappingNode.y);
+                        }  
+                        results.edgeLength = tmpDistance;
+                        results.minDiffFromIdealDistance = minDiffFromIdealDistance;
+                    }                    
+                }
+            }
+            return intersectionPoints;
+        }
+
+        public updateConfiguration(canvasSize: number[]){
+            if(canvasSize != null) {
+                this.width = canvasSize[0];
+                this.height = canvasSize[1];
+                this.initWrappingConfiguration();
+            }            
+        }
+
+        private initWrappingConfiguration(){
+            Descent.oneThirdWidth = this.width/3;
+            Descent.twoThirdsWidth = this.width*2/3;
+            Descent.oneThirdHeight = this.height/3;
+            Descent.twoThirdsHeight = this.height*2/3;
+        }
+
+        public static wrapNode(node: any) {
+            if(node.x > Descent.twoThirdsWidth) {
+                node.x -= Descent.oneThirdWidth;
+                if (node.x > Descent.twoThirdsWidth) {
+                    node.x -= Descent.oneThirdWidth;
+                }                    
+            }            
+            else if(node.x < Descent.oneThirdWidth) {
+                node.x += Descent.oneThirdWidth;
+                if (node.x < Descent.oneThirdWidth) {
+                    node.x += Descent.oneThirdWidth;
+                }                    
+            }
+            
+            if(node.y > Descent.twoThirdsHeight) {
+                node.y -= Descent.oneThirdHeight;
+                if (node.y > Descent.twoThirdsHeight) {
+                    node.y -= Descent.oneThirdHeight;                
+                }                    
+            }
+            else if(node.y < Descent.oneThirdHeight) {
+                node.y += Descent.oneThirdHeight;
+                if (node.y < Descent.oneThirdHeight) {
+                    node.y += Descent.oneThirdHeight;
+                }                    
+            }
+        }
+
+        private wrappingNode(nodes: number[][], oneThirdWidth: number, twoThirdsWidth: number, oneThirdHeight: number, twoThirdsHeight: number): void{
+            const x = nodes[0], y = nodes[1];
+            let i = x.length;
+            while (i--) {
+                if(x[i] > twoThirdsWidth) {
+                    x[i] -= oneThirdWidth;
+                    if (x[i] > twoThirdsWidth) {
+                        x[i] -= oneThirdWidth;
+                    }                    
+                }            
+                else if(x[i] < oneThirdWidth) {
+                    x[i] += oneThirdWidth;
+                    if (x[i] < oneThirdWidth) {
+                        x[i] += oneThirdWidth;
+                    }                    
+                }
+                
+                if(y[i] > twoThirdsHeight) {
+                    y[i] -= oneThirdHeight;
+                    if (y[i] > twoThirdsHeight) {
+                        y[i] -= oneThirdHeight;                
+                    }                    
+                }
+                else if(y[i] < oneThirdHeight) {
+                    y[i] += oneThirdHeight;
+                    if (y[i] < oneThirdHeight) {
+                        y[i] += oneThirdHeight;
+                    }                    
+                }
+            }            
         }
     }
 

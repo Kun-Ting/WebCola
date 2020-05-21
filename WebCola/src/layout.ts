@@ -104,6 +104,7 @@ import {separateGraphs, applyPacking} from './handledisconnected'
         private _descent: Descent = null;
         private _directedLinkConstraints = null;
         private _threshold = 0.01;
+		private static _enableTorusWrapping = false;
         private _visibilityGraph = null;
         private _groupCompactness = 1e-6;
 
@@ -187,6 +188,12 @@ import {separateGraphs, applyPacking} from './handledisconnected'
                 o = this._nodes[i];
                 o.x = x[i];
                 o.y = y[i];
+
+				if(Layout._enableTorusWrapping) {
+                    //wrapping node
+                    Descent.wrapNode(o);
+                }  
+
             }
         }
 
@@ -269,6 +276,20 @@ import {separateGraphs, applyPacking} from './handledisconnected'
         avoidOverlaps(v?: boolean): any {
             if (!arguments.length) return this._avoidOverlaps;
             this._avoidOverlaps = v;
+            return this;
+        }
+
+		/**
+         * if true, the layout will enable torus wrapping
+         * @property avoidOverlaps
+         * @type bool
+         * @default false
+         */
+        enableTorusWrapping(): boolean
+        enableTorusWrapping(v: boolean): this
+        enableTorusWrapping(v?: boolean): any {
+            if (!arguments.length) return Layout._enableTorusWrapping;
+            Layout._enableTorusWrapping = v;
             return this;
         }
 
@@ -593,7 +614,7 @@ import {separateGraphs, applyPacking} from './handledisconnected'
             }
 
             this.avoidOverlaps(false);
-            this._descent = new Descent([x, y], D);
+            this._descent = new Descent([x, y], D, null, this._canvasSize, Layout._enableTorusWrapping);
 
             this._descent.locks.clear();
             for (var i = 0; i < n; ++i) {
@@ -851,8 +872,15 @@ import {separateGraphs, applyPacking} from './handledisconnected'
                     d.groups.forEach(g => Layout.drag(g, position));
                 }
             } else {
-                (<any>d).px = position.x;
-                (<any>d).py = position.y;
+                let node: { x: number, y: number } = {x: position.x, y: position.y};
+
+                if(Layout._enableTorusWrapping) {
+                    //wrapping node
+                    Descent.wrapNode(node);
+                }
+                
+                (<any>d).px = node.x;
+                (<any>d).py = node.y;
             }
         }
 
