@@ -6,10 +6,10 @@ using D3.js and other web-based graphics libraries.
 
 <p align="center">
   <a href="https://ialab.it.monash.edu/~kche0088/WebCola/examples/torusgraphexample.html">
-    <img width="400" alt="Graph with simple groups" src="WebCola/examples/torusgraphexample.gif" />
+    <img width="400" alt="Torus with pan" src="WebCola/examples/torusgraphexample.gif" />
   </a>
   <a href="https://ialab.it.monash.edu/~kche0088/WebCola/examples/torusgraphexample.html">
-    <img width="400" alt="Graph with alignment constraints" src="WebCola/examples/torusgraphexample2.png" />
+    <img width="400" alt="Torus wrapping" src="WebCola/examples/torusgraphexample2.png" />
   </a>
 </p>
 
