@@ -5,15 +5,15 @@ JavaScript constraint based layout for high-quality graph visualization and expl
 using D3.js and other web-based graphics libraries.
 
 <p align="center">
-  <a href="http://marvl.infotech.monash.edu/webcola/examples/smallworldwithgroups.html">
-    <img width="400" alt="Graph with simple groups" src="WebCola/examples/smallworldwithgroups.png" />
+  <a href="https://ialab.it.monash.edu/~kche0088/WebCola/examples/torusgraphexample.html">
+    <img width="400" alt="Graph with simple groups" src="WebCola/examples/torusgraphexample.gif" />
   </a>
-  <a href="http://marvl.infotech.monash.edu/webcola/examples/alignment.html">
-    <img width="400" alt="Graph with alignment constraints" src="WebCola/examples/alignment.png" />
+  <a href="https://ialab.it.monash.edu/~kche0088/WebCola/examples/torusgraphexample.html">
+    <img width="400" alt="Graph with alignment constraints" src="WebCola/examples/torusgraphexample2.png" />
   </a>
 </p>
 
-[Homepage with code and more examples](http://marvl.infotech.monash.edu/webcola)
+[Homepage with code and more examples](https://ialab.it.monash.edu/~kche0088/WebCola/index.html)
 
 Note: While D3 adaptor supports both D3 v3 and D3 v4, WebCoLa's interface is styled like D3 v3. Follow the setup in our homepage for more details.
 
