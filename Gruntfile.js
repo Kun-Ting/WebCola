@@ -58,7 +58,8 @@ module.exports = function (grunt) {
           'WebCola/examples/pretrip.js': ['WebCola/examples/pretrip.ts'],
           'WebCola/examples/statemachinepowergraph.js': ['WebCola/examples/statemachinepowergraph.ts'],
           'WebCola/examples/tetrisbug.js': ['WebCola/examples/tetrisbug.ts'],
-          'WebCola/examples/vhybridize.js': ['WebCola/examples/vhybridize.ts']
+          'WebCola/examples/vhybridize.js': ['WebCola/examples/vhybridize.ts'],
+          'WebCola/examples/torusgraphexample.js': ['WebCola/examples/torusgraphexample.ts']
         }
       },
       test: {
