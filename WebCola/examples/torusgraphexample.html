@@ -1,0 +1,53 @@
+<html>
+    <head>
+        <link rel="stylesheet" href="../styles_panning_app.css">
+        <meta http-equiv="Pragma" content="no-cache">
+        <meta http-equiv="Expires" content="-1">
+        <meta http-equiv="CACHE-CONTROL" content="NO-CACHE">
+    </head>
+    <body>
+        <div>
+            <h2>DoughNets Panning</h2>	
+                <ul>
+                    <input style="display: none" type="text" value="trials" id="trials"/>
+                    <li>Layout Techniques: 
+                    <select id="intmode">
+                        <option value="4">NoTorus</option>
+                        <option value="1">NoContext</option>
+                        <option value="2">PartialContext</option>
+                        <option value="3">FullContext</option>
+                      </select></li>
+            
+                    <li>Data: <select id="questionnum">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                        <option value="7">7</option>
+                        <option value="8">8</option>
+                        <option value="9">9</option>
+                        <option value="10">10</option>
+                        <option value="11">11</option>
+                        <option value="12">12</option>
+                        <option value="13">13</option>
+                        <option value="14">14</option>
+                        <option value="15">15</option>
+                        <option value="16">16</option>
+                        <option value="17">17</option>
+                        <option value="18">18</option>
+                    </select></li>
+                </ul>    
+                <h3 id="questiontext"></h3>	
+                <p>Instructions: Pan the diagram using the mouse, except for NoTorus technique.</p>
+            </div>
+        <svg style="border: 1px solid #BED7F6; touch-action: none; -ms-touch-action:none;" id="mainSvg"
+            width=975
+            height=975
+            viewBox="0 0 975 975"
+        >            
+        </svg>
+        <script src="./torusgraphexample.js"></script>
+    </body>
+</html>
